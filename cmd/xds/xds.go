@@ -2,11 +2,16 @@ package xds
 
 import (
 	"context"
+	"time"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/spf13/cobra"
-	"github.com/whalecold/pilot-finder/pkg/agent"
+	"k8s.io/apiserver/pkg/server"
 	"k8s.io/klog/v2"
+
+	"sync"
+
+	"github.com/whalecold/pilot-finder/pkg/agent"
 )
 
 type options struct {
@@ -25,7 +30,7 @@ func NewCommand(ctx context.Context) *cobra.Command {
 	opts := &options{}
 	cmd := &cobra.Command{
 		Use:          "xds",
-		Short:        "take the request from the pilot discovery",
+		Short:        "mock a the request to the pilot discovery",
 		SilenceUsage: true,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{
 			// Allow unknown flags for backward-compatibility.
@@ -43,10 +48,16 @@ func NewCommand(ctx context.Context) *cobra.Command {
 			cli.Send(&discovery.DiscoveryRequest{
 				TypeUrl: xdsTypeMap[opts.url],
 			})
-			cli.Run(ctx, func(response *discovery.DiscoveryResponse) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go cli.Run(ctx, func(response *discovery.DiscoveryResponse) {
 				klog.Infof("receive the resp url %s", response.TypeUrl)
+				defer wg.Done()
 				return
 			})
+			wg.Wait()
+			server.RequestShutdown()
+			time.Sleep(1 * time.Second)
 			return nil
 		},
 	}

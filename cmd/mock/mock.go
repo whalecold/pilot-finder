@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	"github.com/whalecold/pilot-finder/pkg/mock"
 	"k8s.io/klog/v2"
+
+	"github.com/whalecold/pilot-finder/pkg/mock"
 )
 
 func NewCommand(ctx context.Context) *cobra.Command {
 	opts := &mock.Options{}
 	cmd := &cobra.Command{
 		Use:          "mock",
-		Short:        "take the request from the pilot discovery",
+		Short:        "mock the multi agents connecting to pilot",
 		SilenceUsage: true,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{
 			// Allow unknown flags for backward-compatibility.

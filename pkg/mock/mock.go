@@ -25,7 +25,9 @@ type Options struct {
 	// PilotAddress the pilot address.
 	PilotAddress string
 	// Namespace ...
-	Namespace        string
+	Namespace string
+	// ConnectRateLimit limits the number of new XDS requests allowed. This helps prevent thundering hurd of connect
+	// requests at same time.
 	ConnectRateLimit float64
 }
 
@@ -35,9 +37,12 @@ type Interface interface {
 }
 
 type mock struct {
-	cli           client.Client
-	ses           []*serviceEntry
-	opts          *Options
+	cli  client.Client
+	ses  []*serviceEntry
+	opts *Options
+
+	// limits the number of new XDS requests allowed. This helps prevent thundering hurd of connect
+	// requests at same time.
 	connRateLimit *rate.Limiter
 	log           logr.Logger
 }
