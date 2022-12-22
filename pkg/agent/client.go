@@ -142,7 +142,7 @@ func (a *agent) Run(ctx context.Context, handler func(response *discovery.Discov
 		for {
 			resp, err := a.stream.Recv()
 			if err != nil {
-				a.log.Error(err, "receive msg failed, try to reconnect.")
+				a.log.Error(err, "receive msg failed, exit...")
 				break
 			}
 			a.respChan <- resp
@@ -156,13 +156,7 @@ func (a *agent) Run(ctx context.Context, handler func(response *discovery.Discov
 			return
 		}
 	}()
-	for {
-		select {
-		case res := <-a.respChan:
-			if res == nil {
-				return
-			}
-			handler(res)
-		}
+	for res := range a.respChan {
+		handler(res)
 	}
 }

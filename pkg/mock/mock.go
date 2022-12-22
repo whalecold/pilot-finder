@@ -29,6 +29,8 @@ type Options struct {
 	// ConnectRateLimit limits the number of new XDS requests allowed. This helps prevent thundering hurd of connect
 	// requests at same time.
 	ConnectRateLimit float64
+
+	kube.Options
 }
 
 type Interface interface {
@@ -48,7 +50,7 @@ type mock struct {
 }
 
 func (m *mock) Init() error {
-	cli, err := kube.NewClient()
+	cli, err := kube.NewClient(&m.opts.Options)
 	if err != nil {
 		return err
 	}

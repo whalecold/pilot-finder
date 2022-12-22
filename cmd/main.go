@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -10,7 +9,6 @@ import (
 	"github.com/whalecold/pilot-finder/cmd/mock"
 	"github.com/whalecold/pilot-finder/cmd/xds"
 	"github.com/whalecold/pilot-finder/pkg/version"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -33,8 +31,6 @@ func init() {
 }
 
 func main() {
-	klog.InitFlags(nil)
-	flag.Parse()
 	res := rootCmd.Execute()
 	if res != nil {
 		os.Exit(1)

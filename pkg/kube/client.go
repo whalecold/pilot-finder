@@ -16,17 +16,25 @@ var (
 	scheme = runtime.NewScheme()
 )
 
+// Options ...
+type Options struct {
+	Qps   float32
+	Burst int
+}
+
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = v1alpha3.AddToScheme(scheme)
 }
 
-func NewClient() (client.Client, error) {
+func NewClient(opts *Options) (client.Client, error) {
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
+	config.QPS = opts.Qps
+	config.Burst = opts.Burst
 
 	return client.New(config, client.Options{
 		Scheme: scheme,

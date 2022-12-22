@@ -7,11 +7,10 @@ the mock pilot agent for test
 
 #### mock
 
-mock multi agents to connect to pilot-discovery.
 
 Usage:
 ```shell
-take the request from the pilot discovery
+mock the multi agents connecting to pilot
 
 Usage:
   pilot-finder mock [flags]
@@ -21,7 +20,7 @@ Flags:
   -h, --help                  help for mock
       --namespace string      specify the namespace where se located. (default "default")
       --pilotAddress string   specify the pilot-discovery address (default "127.0.0.1:15010")
-      --rate float            specify rate limit for connect to pilot. (default 10)
+      --rate float            specify rate limit to connect to pilot. (default 10)
       --sn int                serviceEntry number (default 1)
       --wn int                workloadEntry number per serviceEntry (default 1)
 ```
