@@ -105,6 +105,11 @@ func (s *Server) send(stream DeltaStream, typeURL string, res []*discovery.Resou
 	}
 }
 
+type SendQueue struct {
+	res []*discovery.Resource
+	url string
+}
+
 func (s *Server) StreamDeltas(stream DeltaStream) error {
 	ctx := stream.Context()
 	peerAddr := "0.0.0.0"
@@ -114,6 +119,8 @@ func (s *Server) StreamDeltas(stream DeltaStream) error {
 	log := s.log.WithValues("peerAddr", peerAddr)
 	log.Info("receive a new steam..")
 
+	ch := make(chan *SendQueue, 10000)
+	go s.Send(stream, ch, log)
 	for {
 		req, err := stream.Recv()
 		if err != nil {
@@ -127,17 +134,46 @@ func (s *Server) StreamDeltas(stream DeltaStream) error {
 		log.Info("receive info", "type", req.TypeUrl, "node", req.Node)
 		switch req.TypeUrl {
 		case "networking.istio.io/v1alpha3/ServiceEntry":
-			s.send(stream, req.TypeUrl, fakeServiceEntryResources(), log)
+			s.sendServiceEntry(ch, req.TypeUrl, log)
 		case "networking.istio.io/v1alpha3/WorkloadEntry":
-			s.send(stream, req.TypeUrl, fakeWorkloadEntryResources(), log)
+			ch <- &SendQueue{
+				url: req.TypeUrl,
+				res: fakeWorkloadEntryResources(),
+			}
 		}
 	}
 }
 
-func fakeServiceEntryResources() []*discovery.Resource {
+func (s *Server) Send(stream DeltaStream, ch chan *SendQueue, log logr.Logger) {
+	for resp := range ch {
+		s.send(stream, resp.url, resp.res, log)
+	}
+}
+
+func inetntoa(ip int) string {
+	return fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
+}
+
+func (s *Server) sendServiceEntry(ch chan *SendQueue, typeURL string, log logr.Logger) {
+	//s.send(stream, typeURL, fakeServiceEntryResources(), log)
+
+	for j := 0; j < 10; j++ {
+		for i := 0; i < 1000; i++ {
+			log.Info("send the number %d response..", "index", i)
+			ch <- &SendQueue{
+				url: typeURL,
+				res: []*discovery.Resource{serviceEntryNumber(j*1000 + i)},
+			}
+		}
+	}
+	log.Info("send number response 10000 completed..")
+}
+
+func serviceEntryNumber(i int) *discovery.Resource {
+	suffix := fmt.Sprintf("%06d", i)
 	se := &networking.ServiceEntry{
 		Hosts: []string{
-			"servicea.test-auth-public-default-group.svc.cluster.local",
+			fmt.Sprintf("servicea-%s.test-auth-public-default-group.svc.cluster.local", suffix),
 		},
 		Ports: []*networking.Port{
 			{
@@ -149,7 +185,7 @@ func fakeServiceEntryResources() []*discovery.Resource {
 		Resolution: networking.ServiceEntry_STATIC,
 		Endpoints: []*networking.WorkloadEntry{
 			{
-				Address: "10.233.110.132",
+				Address: inetntoa(i + 3221225473),
 				Ports: map[string]uint32{
 					"http": 80,
 				},
@@ -158,7 +194,7 @@ func fakeServiceEntryResources() []*discovery.Resource {
 	}
 	mcpRes := &mcp.Resource{
 		Metadata: &mcp.Metadata{
-			Name: "test-auth-public-default-group/servicea",
+			Name: fmt.Sprintf("test-auth-public-default-group/servicea-%s", suffix),
 			CreateTime: &timestamp.Timestamp{
 				Nanos: int32(time.Now().Nanosecond()),
 			},
@@ -166,10 +202,18 @@ func fakeServiceEntryResources() []*discovery.Resource {
 		Body: MessageToAny(se),
 	}
 
-	ret := &discovery.Resource{
+	return &discovery.Resource{
 		Resource: MessageToAny(mcpRes),
 	}
-	return []*discovery.Resource{ret}
+}
+
+func fakeServiceEntryResources() []*discovery.Resource {
+	number := 9000
+	ret := make([]*discovery.Resource, 0, number)
+	for i := 0; i < number; i++ {
+		ret = append(ret, serviceEntryNumber(i))
+	}
+	return ret
 }
 
 func fakeWorkloadEntryResources() []*discovery.Resource {
