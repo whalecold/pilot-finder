@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -68,6 +69,8 @@ func New(port int, log logr.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	ke := os.Getenv("Ke")
+	fmt.Println(ke)
 	log.Info("start listen the server...", "port", port)
 	discovery.RegisterAggregatedDiscoveryServiceServer(s.insecureGrpcServer, s)
 
@@ -134,8 +137,14 @@ func (s *Server) StreamDeltas(stream DeltaStream) error {
 		log.Info("receive info", "type", req.TypeUrl, "node", req.Node)
 		switch req.TypeUrl {
 		case "networking.istio.io/v1alpha3/ServiceEntry":
-			s.sendServiceEntry(ch, req.TypeUrl, log)
+			// s.sendServiceEntry(ch, req.TypeUrl, log)
+			//s.send(stream, req.TypeUrl, fakeServiceEntryResources(), log)
+			ch <- &SendQueue{
+				url: req.TypeUrl,
+				res: fakeServiceEntryResources(),
+			}
 		case "networking.istio.io/v1alpha3/WorkloadEntry":
+			//s.send(stream, req.TypeUrl, fakeWorkloadEntryResources(), log)
 			ch <- &SendQueue{
 				url: req.TypeUrl,
 				res: fakeWorkloadEntryResources(),
@@ -147,6 +156,7 @@ func (s *Server) StreamDeltas(stream DeltaStream) error {
 func (s *Server) Send(stream DeltaStream, ch chan *SendQueue, log logr.Logger) {
 	for resp := range ch {
 		s.send(stream, resp.url, resp.res, log)
+		log.Info("send response", "type", resp.url)
 	}
 }
 
@@ -155,18 +165,43 @@ func inetntoa(ip int) string {
 }
 
 func (s *Server) sendServiceEntry(ch chan *SendQueue, typeURL string, log logr.Logger) {
-	//s.send(stream, typeURL, fakeServiceEntryResources(), log)
 
-	for j := 0; j < 10; j++ {
-		for i := 0; i < 1000; i++ {
-			log.Info("send the number %d response..", "index", i)
-			ch <- &SendQueue{
-				url: typeURL,
-				res: []*discovery.Resource{serviceEntryNumber(j*1000 + i)},
-			}
-		}
-	}
+	// for j := 0; j < 50000; j++ {
+	//     for i := 0; i < 1; i++ {
+	//         log.Info("send the number %d response..", "index", i)
+	//         ch <- &SendQueue{
+	//             url: typeURL,
+	//             res: []*discovery.Resource{serviceEntryNumber(j*1000 + i)},
+	//         }
+	//     }
+	// }
 	log.Info("send number response 10000 completed..")
+}
+
+func workloadEntryNumber(i int) *discovery.Resource {
+	suffix := fmt.Sprintf("%06d", i)
+	se := &networking.WorkloadEntry{
+		ServiceAccount: "servicea-000499",
+		Labels: map[string]string{
+			suffix: suffix,
+		},
+	}
+	mcpRes := &mcp.Resource{
+		Metadata: &mcp.Metadata{
+			Name: fmt.Sprintf("test-auth-public-default-group/servicea-%s", suffix),
+			CreateTime: &timestamp.Timestamp{
+				Nanos: int32(time.Now().Nanosecond()),
+			},
+			Labels: map[string]string{
+				"registrysynctask.mse.paas.volcengine.com/workspaceId": "qbmsqu0j4cd1zr5uoe7s9uqr",
+			},
+		},
+		Body: MessageToAny(se),
+	}
+
+	return &discovery.Resource{
+		Resource: MessageToAny(mcpRes),
+	}
 }
 
 func serviceEntryNumber(i int) *discovery.Resource {
@@ -198,6 +233,9 @@ func serviceEntryNumber(i int) *discovery.Resource {
 			CreateTime: &timestamp.Timestamp{
 				Nanos: int32(time.Now().Nanosecond()),
 			},
+			Labels: map[string]string{
+				"registrysynctask.mse.paas.volcengine.com/workspaceId": "qbmsqu0j4cd1zr5uoe7s9uqr",
+			},
 		},
 		Body: MessageToAny(se),
 	}
@@ -207,17 +245,22 @@ func serviceEntryNumber(i int) *discovery.Resource {
 	}
 }
 
+func fakeWorkloadEntryResources() []*discovery.Resource {
+	number := 5000
+	ret := make([]*discovery.Resource, 0, number)
+	for i := 0; i < number; i++ {
+		ret = append(ret, workloadEntryNumber(i))
+	}
+	return ret
+}
+
 func fakeServiceEntryResources() []*discovery.Resource {
-	number := 9000
+	number := 50000
 	ret := make([]*discovery.Resource, 0, number)
 	for i := 0; i < number; i++ {
 		ret = append(ret, serviceEntryNumber(i))
 	}
 	return ret
-}
-
-func fakeWorkloadEntryResources() []*discovery.Resource {
-	return nil
 }
 
 // MessageToAnyWithError converts from proto message to proto Any

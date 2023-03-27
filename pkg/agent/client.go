@@ -152,11 +152,14 @@ func (a *agent) Run(ctx context.Context, handler func(response *discovery.Discov
 		select {
 		case <-ctx.Done():
 			a.log.Info("receive stop signal, terminal...")
-			close(a.respChan)
+			a.respChan <- nil
 			return
 		}
 	}()
 	for res := range a.respChan {
+		if res == nil {
+			break
+		}
 		handler(res)
 	}
 }

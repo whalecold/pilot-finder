@@ -31,6 +31,9 @@ func NewCommand(ctx context.Context) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			klog.Infoln("opts ", opts)
+			var l int
+			l += 1
+			klog.Infoln("opts ", l)
 			_, err := server.New(opts.port, klog.NewKlogr())
 			if err != nil {
 				return err
